@@ -74,8 +74,6 @@ void NeuralNet::globalCleanup() {
 }
 
 struct ComputeContext {
-  struct DeviceTrtState;
-
   int nnXLen;
   int nnYLen;
   enabled_t useFP16Mode;
@@ -89,11 +87,6 @@ struct ComputeContext {
   bool useOnnx;          // build via the ONNX emitter (default true); false = hand-built ModelParser
   bool transformerNHWC;  // ONNX emitter: run transformer blocks channel-last (default true)
   string dumpDebugPlanToDir;  // if non-empty, dump emitted ONNX + built-engine layer info here (debug)
-  std::mutex deviceTrtStateMutex;
-  map<int, unique_ptr<DeviceTrtState>> deviceTrtStates;
-
-  ComputeContext() = default;
-  ~ComputeContext();
 };
 
 ComputeContext* NeuralNet::createComputeContext(
@@ -142,8 +135,6 @@ ComputeContext* NeuralNet::createComputeContext(
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
   delete computeContext;
 }
-
-ComputeContext::~ComputeContext() = default;
 
 struct LoadedModel {
   ModelDesc modelDesc;
@@ -1862,7 +1853,7 @@ struct ComputeHandle {
     return engine.get();
   }
 
-  void clearErrorRecorder() const {
+  void clearErrorRecorder() {
     trtErrorRecorder.clear();
   }
 
@@ -2536,7 +2527,7 @@ void NeuralNet::trtRegisterSharedBuffer(
   ComputeHandle* computeHandle,
   InputBuffers* buffers) {
   computeHandle->setDevice("trtRegisterSharedBuffer");
-  RegisteredBufferState* existing = findRegisteredBufferState(computeHandle, buffers);
+  ComputeHandle::RegisteredBufferState* existing = findRegisteredBufferState(computeHandle, buffers);
   if(existing != nullptr)
     return;
 
@@ -2704,7 +2695,7 @@ void NeuralNet::trtLaunchInferenceAsync(
     buffers->trtH2DPending = false;
   }
 
-  RegisteredBufferState* regState = findRegisteredBufferState(computeHandle, buffers);
+  ComputeHandle::RegisteredBufferState* regState = findRegisteredBufferState(computeHandle, buffers);
   if(regState == nullptr)
     throw StringError("TensorRT backend: buffer not registered for shared inference");
 
