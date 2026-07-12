@@ -27,6 +27,20 @@ struct InputBuffers;
 // A handle to the loaded neural network model.
 struct LoadedModel;
 
+enum class CudaSyncMode {
+  Auto,
+  Spin,
+  Yield,
+  Blocking,
+};
+
+enum class TrtTilingOptimizationLevel {
+  None,
+  Fast,
+  Moderate,
+  Full,
+};
+
 struct TRTConfigs {
   bool trtUseCudaGraph = false;
   CudaSyncMode trtCudaSyncMode = CudaSyncMode::Blocking;
