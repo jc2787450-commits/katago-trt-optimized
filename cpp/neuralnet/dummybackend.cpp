@@ -21,6 +21,7 @@ ComputeContext* NeuralNet::createComputeContext(
   const string& homeDataDirOverride,
   enabled_t useFP16Mode,
   const LoadedModel* loadedModel,
+  const TRTConfigs& trtConfigs,
   ConfigParser& cfg
 ) {
   (void)gpuIdxs;
@@ -30,6 +31,7 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)homeDataDirOverride;
   (void)useFP16Mode;
   (void)loadedModel;
+  (void)trtConfigs;
   (void)cfg;
   throw StringError("Dummy neural net backend: NeuralNet::createComputeContext unimplemented");
 }
@@ -62,7 +64,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool requireExactNNLen,
   bool inputsUseNHWC,
   int gpuIdxForThisThread,
-  int serverThreadIdx
+  int serverThreadIdx,
+  int backendNumThreads
 ) {
   (void)context;
   (void)loadedModel;
@@ -72,6 +75,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   (void)inputsUseNHWC;
   (void)gpuIdxForThisThread;
   (void)serverThreadIdx;
+  (void)backendNumThreads;
   throw StringError("Dummy neural net backend: NeuralNet::createLocalGpuHandle unimplemented");
 }
 

@@ -506,8 +506,10 @@ ComputeContext* NeuralNet::createComputeContext(
   const string& homeDataDirOverride,
   enabled_t useFP16Mode,
   const LoadedModel* loadedModel,
+  const TRTConfigs& trtConfigs,
   ConfigParser& cfg
 ) {
+  (void)trtConfigs;
   if(gpuIdxs.size() <= 0)
     throw StringError("NeuralNet::createComputeContext - specified no gpus to use");
 
@@ -3769,8 +3771,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool requireExactNNLen,
   bool inputsUseNHWC,
   int gpuIdxForThisThread,
-  int serverThreadIdx
+  int serverThreadIdx,
+  int backendNumThreads
 ) {
+  (void)backendNumThreads;
   auto deviceStr = [&]() {
     if(gpuIdxForThisThread < 0)
       return string("");

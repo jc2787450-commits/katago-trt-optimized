@@ -27,6 +27,15 @@ struct InputBuffers;
 // A handle to the loaded neural network model.
 struct LoadedModel;
 
+struct TRTConfigs {
+  bool trtUseCudaGraph = false;
+  CudaSyncMode trtCudaSyncMode = CudaSyncMode::Blocking;
+  int trtBuilderOptimizationLevel = -1;
+  int trtMaxAuxStreams = -1;
+  int trtAvgTimingIterations = -1;
+  TrtTilingOptimizationLevel trtTilingOptimizationLevel = TrtTilingOptimizationLevel::None;
+};
+
 // Generic interface to neural net inference.
 // There is a single CUDA backend.
 namespace NeuralNet {
@@ -57,6 +66,7 @@ namespace NeuralNet {
     const std::string& homeDataDirOverride,
     enabled_t useFP16Mode,
     const LoadedModel* loadedModel,
+    const TRTConfigs& trtConfigs,
     // Config that the backend may consult for its own custom options (e.g. OpenCL tuner file, cuDNN
     // SDPA disable). Backends read whatever keys they care about directly off of this.
     ConfigParser& cfg
@@ -81,7 +91,8 @@ namespace NeuralNet {
     bool requireExactNNLen,
     bool inputsUseNHWC,
     int gpuIdxForThisThread,
-    int serverThreadIdx
+    int serverThreadIdx,
+    int backendNumThreads
   );
   void freeComputeHandle(ComputeHandle* computeHandle);
 
@@ -121,6 +132,50 @@ namespace NeuralNet {
     NNResultBuf** inputBufs,
     std::vector<NNOutput*>& outputs
   );
+
+#ifdef USE_TENSORRT_BACKEND
+  // TensorRT-only async slot helpers used by the overlapping scheduler design.
+  void trtSetDevice(ComputeHandle* computeHandle);
+  void trtInitializeSharedBuffer(
+    ComputeHandle* computeHandle,
+    InputBuffers* buffers
+  );
+  void trtRegisterSharedBuffer(
+    ComputeHandle* computeHandle,
+    InputBuffers* buffers
+  );
+  void trtPackInputRow(
+    InputBuffers* buffers,
+    const NNResultBuf* inputBuf,
+    int rowIdx,
+    ComputeHandle* computeHandle
+  );
+  void trtEnqueueInputRowCopy(
+    ComputeHandle* computeHandle,
+    InputBuffers* buffers,
+    int rowIdx
+  );
+  bool trtQueryInputCopiesDone(InputBuffers* buffers);
+  void trtLaunchInferenceAsync(
+    ComputeHandle* computeHandle,
+    InputBuffers* buffers,
+    int batchSize
+  );
+  bool trtQueryInferenceDone(InputBuffers* buffers);
+  void trtEnqueueOutputCopiesAsync(
+    ComputeHandle* computeHandle,
+    InputBuffers* buffers,
+    int batchSize
+  );
+  bool trtQueryOutputCopiesDone(InputBuffers* buffers);
+  void trtUnpackOutputRow(
+    InputBuffers* buffers,
+    const NNResultBuf* inputBuf,
+    NNOutput* output,
+    int rowIdx,
+    ComputeHandle* computeHandle
+  );
+#endif
 
 
   // FOR TESTING -----------------------------------------------------------------------

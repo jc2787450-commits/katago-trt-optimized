@@ -1,6 +1,7 @@
 #ifndef NEURALNET_NNEVAL_H_
 #define NEURALNET_NNEVAL_H_
 
+#include <map>
 #include <memory>
 
 #include "../core/global.h"
@@ -16,6 +17,7 @@
 #include "../search/mutexpool.h"
 
 class NNEvaluator;
+struct SchedulerState;
 
 class NNCacheTable {
   struct Entry {
@@ -98,7 +100,8 @@ class NNEvaluator {
     const std::string& randSeed,
     bool doRandomize,
     int defaultSymmetry,
-    bool disableWarmup,
+    int backendNumThreads,
+    const TRTConfigs& trtConfigs,
     // Consulted by the compute backend for its own custom options; not stored.
     ConfigParser& cfg
   );
@@ -216,11 +219,12 @@ class NNEvaluator {
   const int policySize;
   const bool inputsUseNHWC;
   const enabled_t usingFP16Mode;
+  const TRTConfigs trtConfigs;
   int numThreads;
+  int backendNumThreads;
   std::vector<int> gpuIdxByServerThread;
   const std::string randSeed;
   const bool debugSkipNeuralNet;
-  const bool disableWarmup;
 
   ComputeContext* computeContext;
   LoadedModel* loadedModel;
@@ -233,6 +237,7 @@ class NNEvaluator {
   int numInputMetaChannels;
 
   ModelPostProcessParams postProcessParams;
+  SchedulerState* schedulerState;
 
   int numServerThreadsEverSpawned;
   std::vector<std::thread*> serverThreads;
@@ -252,6 +257,7 @@ class NNEvaluator {
   std::condition_variable mainThreadWaitingForSpawn; // Condvar for waiting until server threads are spawned
 
   std::vector<int> serverThreadsIsUsingFP16;
+  std::map<int,int> numGpuBusyClaims;
 
   int numOngoingEvals; // Current number of ongoing evals.
   int numWaitingEvals; // Current number of things waiting for finish.
@@ -289,6 +295,9 @@ class NNEvaluator {
  public:
   // Helper, for internal use only
   void serve(NNServerBuf& buf, Rand& rand, int gpuIdxForThisThread, int serverThreadIdx);
+#ifdef USE_TENSORRT_BACKEND
+  void serveTrtScheduler(const std::string& randSeedThisThread);
+#endif
 };
 
 #endif  // NEURALNET_NNEVAL_H_

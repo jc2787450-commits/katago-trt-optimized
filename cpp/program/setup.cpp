@@ -9,6 +9,64 @@
 
 using namespace std;
 
+namespace {
+static CudaSyncMode parseCudaSyncMode(const string& rawValue, const string& keyName) {
+  string value = Global::toLower(Global::trim(rawValue));
+  if(value == "auto")
+    return CudaSyncMode::Auto;
+  if(value == "spin")
+    return CudaSyncMode::Spin;
+  if(value == "yield")
+    return CudaSyncMode::Yield;
+  if(value == "blocking")
+    return CudaSyncMode::Blocking;
+  throw StringError(
+    "Invalid value for " + keyName + ": " + rawValue +
+    " (expected one of: auto, spin, yield, blocking)"
+  );
+}
+
+static string cudaSyncModeToString(CudaSyncMode mode) {
+  switch(mode) {
+  case CudaSyncMode::Auto: return "auto";
+  case CudaSyncMode::Spin: return "spin";
+  case CudaSyncMode::Yield: return "yield";
+  case CudaSyncMode::Blocking: return "blocking";
+  }
+  ASSERT_UNREACHABLE;
+}
+
+static TrtTilingOptimizationLevel parseTrtTilingOptimizationLevel(const string& rawValue, const string& keyName) {
+  string value = Global::toLower(Global::trim(rawValue));
+  if(value == "none")
+    return TrtTilingOptimizationLevel::None;
+  if(value == "fast")
+    return TrtTilingOptimizationLevel::Fast;
+  if(value == "moderate")
+    return TrtTilingOptimizationLevel::Moderate;
+  if(value == "full")
+    return TrtTilingOptimizationLevel::Full;
+  throw StringError(
+    "Invalid value for " + keyName + ": " + rawValue +
+    " (expected one of: none, fast, moderate, full)"
+  );
+}
+
+static string trtTilingOptimizationLevelToString(TrtTilingOptimizationLevel level) {
+  switch(level) {
+  case TrtTilingOptimizationLevel::None: return "none";
+  case TrtTilingOptimizationLevel::Fast: return "fast";
+  case TrtTilingOptimizationLevel::Moderate: return "moderate";
+  case TrtTilingOptimizationLevel::Full: return "full";
+  }
+  ASSERT_UNREACHABLE;
+}
+
+static string trtOptionalIntSettingToString(int value) {
+  return value < 0 ? "default" : Global::intToString(value);
+}
+}
+
 void Setup::initializeSession(ConfigParser& cfg) {
   (void)cfg;
   NeuralNet::globalInitialize();
@@ -236,6 +294,65 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("useFP16"))
       useFP16Mode = cfg.getEnabled("useFP16");
 
+    TRTConfigs trtConfigs;
+    if(cfg.contains(backendPrefix+"UseCudaGraph-"+idxStr))
+      trtConfigs.trtUseCudaGraph = cfg.getBool(backendPrefix+"UseCudaGraph-"+idxStr);
+    else if(cfg.contains("trtUseCudaGraph-"+idxStr))
+      trtConfigs.trtUseCudaGraph = cfg.getBool("trtUseCudaGraph-"+idxStr);
+    else if(cfg.contains(backendPrefix+"UseCudaGraph"))
+      trtConfigs.trtUseCudaGraph = cfg.getBool(backendPrefix+"UseCudaGraph");
+    else if(cfg.contains("trtUseCudaGraph"))
+      trtConfigs.trtUseCudaGraph = cfg.getBool("trtUseCudaGraph");
+    else if(cfg.contains("useCudaGraph-"+idxStr))
+      trtConfigs.trtUseCudaGraph = cfg.getBool("useCudaGraph-"+idxStr);
+    else if(cfg.contains("useCudaGraph"))
+      trtConfigs.trtUseCudaGraph = cfg.getBool("useCudaGraph");
+
+    if(cfg.contains(backendPrefix+"BuilderOptimizationLevel-"+idxStr))
+      trtConfigs.trtBuilderOptimizationLevel = cfg.getInt(backendPrefix+"BuilderOptimizationLevel-"+idxStr, -1, 5);
+    else if(cfg.contains("trtBuilderOptimizationLevel-"+idxStr))
+      trtConfigs.trtBuilderOptimizationLevel = cfg.getInt("trtBuilderOptimizationLevel-"+idxStr, -1, 5);
+    else if(cfg.contains(backendPrefix+"BuilderOptimizationLevel"))
+      trtConfigs.trtBuilderOptimizationLevel = cfg.getInt(backendPrefix+"BuilderOptimizationLevel", -1, 5);
+    else if(cfg.contains("trtBuilderOptimizationLevel"))
+      trtConfigs.trtBuilderOptimizationLevel = cfg.getInt("trtBuilderOptimizationLevel", -1, 5);
+
+    if(cfg.contains(backendPrefix+"MaxAuxStreams-"+idxStr))
+      trtConfigs.trtMaxAuxStreams = cfg.getInt(backendPrefix+"MaxAuxStreams-"+idxStr, -1, 1024);
+    else if(cfg.contains("trtMaxAuxStreams-"+idxStr))
+      trtConfigs.trtMaxAuxStreams = cfg.getInt("trtMaxAuxStreams-"+idxStr, -1, 1024);
+    else if(cfg.contains(backendPrefix+"MaxAuxStreams"))
+      trtConfigs.trtMaxAuxStreams = cfg.getInt(backendPrefix+"MaxAuxStreams", -1, 1024);
+    else if(cfg.contains("trtMaxAuxStreams"))
+      trtConfigs.trtMaxAuxStreams = cfg.getInt("trtMaxAuxStreams", -1, 1024);
+
+    if(cfg.contains(backendPrefix+"AvgTimingIterations-"+idxStr))
+      trtConfigs.trtAvgTimingIterations = cfg.getInt(backendPrefix+"AvgTimingIterations-"+idxStr, -1, 1000000);
+    else if(cfg.contains("trtAvgTimingIterations-"+idxStr))
+      trtConfigs.trtAvgTimingIterations = cfg.getInt("trtAvgTimingIterations-"+idxStr, -1, 1000000);
+    else if(cfg.contains(backendPrefix+"AvgTimingIterations"))
+      trtConfigs.trtAvgTimingIterations = cfg.getInt(backendPrefix+"AvgTimingIterations", -1, 1000000);
+    else if(cfg.contains("trtAvgTimingIterations"))
+      trtConfigs.trtAvgTimingIterations = cfg.getInt("trtAvgTimingIterations", -1, 1000000);
+
+    if(cfg.contains(backendPrefix+"TilingOptimizationLevel-"+idxStr))
+      trtConfigs.trtTilingOptimizationLevel = parseTrtTilingOptimizationLevel(cfg.getString(backendPrefix+"TilingOptimizationLevel-"+idxStr), backendPrefix+"TilingOptimizationLevel-"+idxStr);
+    else if(cfg.contains("trtTilingOptimizationLevel-"+idxStr))
+      trtConfigs.trtTilingOptimizationLevel = parseTrtTilingOptimizationLevel(cfg.getString("trtTilingOptimizationLevel-"+idxStr), "trtTilingOptimizationLevel-"+idxStr);
+    else if(cfg.contains(backendPrefix+"TilingOptimizationLevel"))
+      trtConfigs.trtTilingOptimizationLevel = parseTrtTilingOptimizationLevel(cfg.getString(backendPrefix+"TilingOptimizationLevel"), backendPrefix+"TilingOptimizationLevel");
+    else if(cfg.contains("trtTilingOptimizationLevel"))
+      trtConfigs.trtTilingOptimizationLevel = parseTrtTilingOptimizationLevel(cfg.getString("trtTilingOptimizationLevel"), "trtTilingOptimizationLevel");
+
+    if(cfg.contains(backendPrefix+"CudaSyncMode-"+idxStr))
+      trtConfigs.trtCudaSyncMode = parseCudaSyncMode(cfg.getString(backendPrefix+"CudaSyncMode-"+idxStr), backendPrefix+"CudaSyncMode-"+idxStr);
+    else if(cfg.contains("trtCudaSyncMode-"+idxStr))
+      trtConfigs.trtCudaSyncMode = parseCudaSyncMode(cfg.getString("trtCudaSyncMode-"+idxStr), "trtCudaSyncMode-"+idxStr);
+    else if(cfg.contains(backendPrefix+"CudaSyncMode"))
+      trtConfigs.trtCudaSyncMode = parseCudaSyncMode(cfg.getString(backendPrefix+"CudaSyncMode"), backendPrefix+"CudaSyncMode");
+    else if(cfg.contains("trtCudaSyncMode"))
+      trtConfigs.trtCudaSyncMode = parseCudaSyncMode(cfg.getString("trtCudaSyncMode"), "trtCudaSyncMode");
+
     int forcedSymmetry = -1;
     if(setupFor != SETUP_FOR_DISTRIBUTED && cfg.contains("nnForcedSymmetry"))
       forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,SymmetryHelpers::NUM_SYMMETRIES-1);
@@ -243,6 +360,12 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     logger.write(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
       + " useFP16 " + useFP16Mode.toString()
+      + " trtUseCudaGraph " + Global::boolToString(trtConfigs.trtUseCudaGraph)
+      + " trtBuilderOptimizationLevel " + trtOptionalIntSettingToString(trtConfigs.trtBuilderOptimizationLevel)
+      + " trtMaxAuxStreams " + trtOptionalIntSettingToString(trtConfigs.trtMaxAuxStreams)
+      + " trtAvgTimingIterations " + trtOptionalIntSettingToString(trtConfigs.trtAvgTimingIterations)
+      + " trtTilingOptimizationLevel " + trtTilingOptimizationLevelToString(trtConfigs.trtTilingOptimizationLevel)
+      + " trtCudaSyncMode " + cudaSyncModeToString(trtConfigs.trtCudaSyncMode)
     );
 
     int nnCacheSizePowerOfTwo =
@@ -290,10 +413,11 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     if(disableFP16)
       useFP16Mode = enabled_t::False;
 
-    //Pre-warm lazily-compiled backend graphs (e.g. cuDNN SDPA plans for transformer models) when each
-    //server thread's handle is created, so the first searches aren't stalled. On by default.
-    bool disableWarmup =
-      cfg.contains("cudaDisableWarmup") ? cfg.getBool("cudaDisableWarmup") : false;
+    //Pre-warm lazily-compiled backend graphs is handled internally by the
+    //TRT scheduler's initializeDeviceBaseWorkEstimates; for other backends,
+    //warmup is disabled (handled per-backend).
+    cfg.markAllKeysUsedWithPrefix("cudaDisableWarmup");
+    int backendNumThreads = 1;
 
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
@@ -315,7 +439,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed,
       (forcedSymmetry >= 0 ? false : nnRandomize),
       defaultSymmetry,
-      disableWarmup,
+      backendNumThreads,
+      trtConfigs,
       cfg
     );
 

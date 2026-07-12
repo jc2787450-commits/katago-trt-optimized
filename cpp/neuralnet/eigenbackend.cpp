@@ -2325,12 +2325,14 @@ ComputeContext* NeuralNet::createComputeContext(
   const string& homeDataDirOverride,
   enabled_t useFP16Mode,
   const LoadedModel* loadedModel,
+  const TRTConfigs& trtConfigs,
   ConfigParser& cfg
 ) {
   (void)gpuIdxs;
   (void)logger;
   (void)homeDataDirOverride;
   (void)loadedModel;
+  (void)trtConfigs;
   (void)cfg;
 
   bool useFP16 = useFP16Mode == enabled_t::True ? true : false;
@@ -2400,8 +2402,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool requireExactNNLen,
   bool inputsUseNHWC,
   int gpuIdxForThisThread,
-  int serverThreadIdx
+  int serverThreadIdx,
+  int backendNumThreads
 ) {
+  (void)backendNumThreads;
   if(logger != NULL) {
     logger->write("Eigen (CPU) backend thread " + Global::intToString(serverThreadIdx) + ": Model version " + Global::intToString(loadedModel->modelDesc.modelVersion));
     logger->write("Eigen (CPU) backend thread " + Global::intToString(serverThreadIdx) + ": Model name: " + loadedModel->modelDesc.name + " (" + loadedModel->modelDesc.getShortInfoString() + ")");

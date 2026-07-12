@@ -51,7 +51,8 @@ static NNEvaluator* startNNEval(
     seed,
     nnRandomize,
     defaultSymmetry,
-    false,
+    1,  // backendNumThreads
+    TRTConfigs(),  // default TRT configs for tests
     cfg
   );
 

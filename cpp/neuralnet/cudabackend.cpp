@@ -3317,12 +3317,14 @@ ComputeContext* NeuralNet::createComputeContext(
   const string& homeDataDirOverride,
   enabled_t useFP16Mode,
   const LoadedModel* loadedModel,
+  const TRTConfigs& trtConfigs,
   ConfigParser& cfg
 ) {
   (void)gpuIdxs;
   (void)logger;
   (void)homeDataDirOverride;
   (void)loadedModel;
+  (void)trtConfigs;
 
   ComputeContext* context = new ComputeContext();
   context->nnXLen = nnXLen;
@@ -3404,7 +3406,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool requireExactNNLen,
   bool inputsUseNHWC,
   int gpuIdxForThisThread,
-  int serverThreadIdx
+  int serverThreadIdx,
+  int backendNumThreads
 ) {
   //Use whatever CUDA believes GPU 0 to be.
   if(gpuIdxForThisThread == -1)

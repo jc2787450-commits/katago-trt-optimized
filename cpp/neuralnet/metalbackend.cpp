@@ -424,7 +424,9 @@ ComputeContext* NeuralNet::createComputeContext(
   const string& homeDataDirOverride,
   enabled_t useFP16Mode,
   const LoadedModel* loadedModel,
+  const TRTConfigs& trtConfigs,
   ConfigParser& cfg) {
+  (void)trtConfigs;
 
   (void)gpuIdxs;
   (void)logger;
@@ -582,7 +584,9 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool requireExactNNLen,
   bool inputsUseNHWC,
   int gpuIdxForThisThread,
-  int serverThreadIdx) {
+  int serverThreadIdx,
+  int backendNumThreads) {
+  (void)backendNumThreads;
 
   (void)logger;
 

@@ -235,7 +235,8 @@ NNEvaluator* TestSearchCommon::startNNEval(
     nnRandSeed,
     nnRandomize,
     defaultSymmetry,
-    false,
+    1,  // backendNumThreads
+    TRTConfigs(),  // default TRT configs for tests
     cfg
   );
 
