@@ -756,6 +756,30 @@ void NNEvaluator::serveTrtScheduler(const string& randSeedThisThread) {
         }
         device.baseWorkMsByBatch[batchSize] = sumMs / measuredRuns;
       }
+
+      // Report measured throughput per batch size so the user can pick the optimal nnMaxBatchSize.
+      if(logger != NULL) {
+        logger->write("TRT scheduler: batch-size benchmark for GPU " + Global::intToString(device.gpuIdx) +
+          " (model v" + Global::intToString(modelVersion) + ", " +
+          (NeuralNet::isUsingFP16(slot.gpuHandle) ? "FP16" : "FP32") + "):");
+        double bestPosPerSec = 0.0;
+        int bestBatchSize = 1;
+        for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+          double ms = device.baseWorkMsByBatch[batchSize];
+          double posPerSec = batchSize * 1000.0 / ms;
+          logger->write(Global::strprintf(
+            "  batchSize=%2d  %6.1f ms/batch  %8.0f pos/s%s",
+            batchSize, ms, posPerSec,
+            posPerSec > bestPosPerSec ? "  <-- best" : ""));
+          if(posPerSec > bestPosPerSec) {
+            bestPosPerSec = posPerSec;
+            bestBatchSize = batchSize;
+          }
+        }
+        logger->write(Global::strprintf(
+          "TRT scheduler: recommended nnMaxBatchSize = %d for GPU %d (%.0f pos/s peak)",
+          bestBatchSize, device.gpuIdx, bestPosPerSec));
+      }
     }
   };
 
