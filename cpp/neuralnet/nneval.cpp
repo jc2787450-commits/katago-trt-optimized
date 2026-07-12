@@ -1058,7 +1058,9 @@ void NNEvaluator::spawnServerThreads() {
     numServerThreadsEverSpawned++;
     std::thread* thread = new std::thread(
       [this, randSeedThisThread]() {
+#ifdef USE_TENSORRT_BACKEND
         serveTrtScheduler(randSeedThisThread);
+#endif
       }
     );
     serverThreads.push_back(thread);
@@ -1108,18 +1110,6 @@ void NNEvaluator::killServerThreads() {
 
   if(GlobalPerfProfile::isEnabled())
     GlobalPerfProfile::configureInferenceResources(false, 0);
-
-  // Can unset now that threads are dead
-  isKilled = false;
-
-  testAssert(numOngoingEvals == 0);
-  testAssert(numWaitingEvals == 0);
-  testAssert(numEvalsToAwaken == 0);
-}
-  for(size_t i = 0; i<serverThreads.size(); i++)
-    delete serverThreads[i];
-  serverThreads.clear();
-  serverThreadsIsUsingFP16.clear();
 
   // Can unset now that threads are dead
   isKilled = false;
@@ -1180,7 +1170,7 @@ void NNEvaluator::fillRowBufs(
 }
 
 void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverThreadIdx) {
-  if(disableWarmup || gpuHandle == NULL || debugSkipNeuralNet || loadedModel == NULL)
+  if(gpuHandle == NULL || debugSkipNeuralNet || loadedModel == NULL)
     return;
   // Warmup currently only matters on CUDA, where cuDNN lazily compiles an SDPA execution plan per
   // batch size on first use. Other backends: nothing to warm up for now.
