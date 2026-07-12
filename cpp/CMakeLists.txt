@@ -251,6 +251,7 @@ endif()
 
 add_executable(katago
   core/global.cpp
+  core/globalperf.cpp
   core/base64.cpp
   core/bsearch.cpp
   core/commandloop.cpp
